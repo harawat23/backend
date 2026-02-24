@@ -1,0 +1,5 @@
+= Building Neo4j Applications with Spring Data Neo4j
+
+This repository accompanies the link:graphacademy.neo4j.com/courses/app-spring-data[Building Neo4j Applications with Spring Data Neo4j^] on link:graphacademy.neo4j.com/courses[GraphAcademy^].
+
+For a complete walkthrough of this repository, link:graphacademy.neo4j.com/courses/app-spring-data[enroll now^].
