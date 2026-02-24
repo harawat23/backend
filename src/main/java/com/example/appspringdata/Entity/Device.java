@@ -23,6 +23,15 @@ public class Device {
     private String partNumber;
     private String deviceName;
     private ZonedDateTime updatedAt;
+    private Long numberOfShelfPositions;
+
+    public Long getNumberOfShelfPositions() {
+        return this.numberOfShelfPositions;
+    }
+
+    public void setNumberOfShelfPositions(Long numberOfShelfPositions) {
+        this.numberOfShelfPositions = numberOfShelfPositions;
+    }
 
     @Relationship(value="HAS",direction=Relationship.Direction.OUTGOING)
     private List<ShelfPosition> shelfPositions;

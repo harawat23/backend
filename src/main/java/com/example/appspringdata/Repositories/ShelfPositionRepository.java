@@ -121,6 +121,7 @@ public class ShelfPositionRepository {
                     SET r.createdAt=datetime()
                     SET r.updatedAt=datetime()
                     SET d.createdAt=datetime()
+                    SET d.numShelfPositions=d.numShelfPositions+1
                     RETURN
                         s.createdAt AS createdAt_shelfPosition,
                         s.shelfPosId AS shelfPosId,

@@ -45,6 +45,7 @@ public class DeviceRepository {
                            d.isDeleted AS isDeleted,
                            d.createdAt AS createdAt,
                            d.updatedAt AS updatedAt,
+                           d.numShelfPositions AS numberOfShelfPositions,
                     collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
                     shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
                     shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
@@ -88,6 +89,7 @@ public class DeviceRepository {
                            d.isDeleted AS isDeleted,
                            d.createdAt AS createdAt,
                            d.updatedAt AS updatedAt,
+                           d.numShelfPositions AS numberOfShelfPositions,
                     collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
                     shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
                     shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
@@ -131,7 +133,7 @@ public class DeviceRepository {
                     RETURN d.deviceId AS deviceId, d.deviceName AS deviceName, d.partNumber AS partNumber,
                            d.buildingName AS buildingName, d.deviceType AS deviceType,
                            d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt, d.updatedAt AS updatedAt, [] AS shelfPositions;
+                           d.createdAt AS createdAt, d.updatedAt AS updatedAt,d.numShelfPositions AS numberOfShelfPositions,[] AS shelfPositions;
                     """;
 
             // Use HashMap to allow null values
@@ -175,7 +177,7 @@ public class DeviceRepository {
                     RETURN d.deviceId AS deviceId, d.deviceName AS deviceName, d.partNumber AS partNumber,
                            d.buildingName AS buildingName, d.deviceType AS deviceType,
                            d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt, d.updatedAt AS updatedAt, [] AS shelfPositions;
+                           d.createdAt AS createdAt, d.updatedAt AS updatedAt,d.numShelfPositions AS numberOfShelfPositions, [] AS shelfPositions;
                     """;
 
             Map<String, Object> params = new HashMap<>();
@@ -242,7 +244,7 @@ public class DeviceRepository {
         d.setDeviceType(getString(rec, "deviceType"));
         d.setCreatedAt(getZonedDateTime(rec, "createdAt"));
         d.setUpdatedAt(getZonedDateTime(rec, "updatedAt"));
-
+        d.setNumberOfShelfPositions(getLong(rec,"numShelfPositions"));
         Iterable<Value> values = rec.get("shelfPositions").values();
         System.out.println(values);
         List<ShelfPositionOutput> shelfPositions = new ArrayList<>();

@@ -11,6 +11,15 @@ public class DeviceOutput {
     private String partNumber;
     private String deviceName;
     private ZonedDateTime updatedAt;
+    private Long numberOfShelfPositions;
+
+    public Long getNumberOfShelfPositions() {
+        return this.numberOfShelfPositions;
+    }
+
+    public void setNumberOfShelfPositions(Long numberOfShelfPositions) {
+        this.numberOfShelfPositions = numberOfShelfPositions;
+    }
 
     private List<ShelfPositionOutput> shelfPosition;
 
