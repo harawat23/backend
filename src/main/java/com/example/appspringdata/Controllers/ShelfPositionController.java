@@ -64,7 +64,7 @@ public class ShelfPositionController {
     @PutMapping("detachshelf/{shelfpositionid}/{shelfid}")
     public ResponseEntity<ShelfPositionOutput> detachShelf(@PathVariable String shelfpositionid,@PathVariable String shelfid){
         Optional<ShelfPositionOutput> shelfPositionOutput=shelfPositionService.deteachShelfPosition(shelfpositionid, shelfid);
-
+    
         return shelfPositionOutput.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
     }
 

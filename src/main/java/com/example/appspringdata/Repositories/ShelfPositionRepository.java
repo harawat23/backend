@@ -270,12 +270,7 @@ public class ShelfPositionRepository {
                         RETURN
                             s.createdAt AS createdAt_shelfPosition,
                             s.shelfPosId AS shelfPosId,
-                            s.updatedAt AS updatedAt_shelfPosition,
-                            sh.shelfId AS shelfId,
-                            sh.partNumber AS partNumber_Shelf,
-                            sh.shelfName AS shelfName,
-                            sh.createdAt AS createdAt_Shelf,
-                            sh.updatedAt AS updatedAt_Shelf;
+                            s.updatedAt AS updatedAt_shelfPosition;
                     """;
 
             return session.executeWrite(tx -> {

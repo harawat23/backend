@@ -244,7 +244,7 @@ public class DeviceRepository {
         d.setDeviceType(getString(rec, "deviceType"));
         d.setCreatedAt(getZonedDateTime(rec, "createdAt"));
         d.setUpdatedAt(getZonedDateTime(rec, "updatedAt"));
-        d.setNumberOfShelfPositions(getLong(rec,"numShelfPositions"));
+        d.setNumberOfShelfPositions(getLong(rec,"numberOfShelfPositions"));
         Iterable<Value> values = rec.get("shelfPositions").values();
         System.out.println(values);
         List<ShelfPositionOutput> shelfPositions = new ArrayList<>();
