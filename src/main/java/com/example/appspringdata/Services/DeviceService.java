@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import com.example.appspringdata.Entity.Device;
 import com.example.appspringdata.Repositories.DeviceRepository;
 import com.example.appspringdata.Utils.DeviceOutput;
 
@@ -18,6 +20,22 @@ public class DeviceService {
 
     public Optional<DeviceOutput> getDeviceById(String id) {
         return deviceRepository.getDeviceById(id);
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByDevicename(String name) {
+        return deviceRepository.getDevicebyDeviceName(name);
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByPartNumber(String partNumber){
+        return deviceRepository.getDeviceByPartNumber(partNumber);
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByBuildingName(String buildingName){
+        return deviceRepository.getDeviceByBuildingName(buildingName);
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByDeviceType(String deviceType){
+        return deviceRepository.getDeviceByDeviceType(deviceType);
     }
 
     public Optional<DeviceOutput> createDevice(String deviceType, String buildingName,
@@ -37,5 +55,9 @@ public class DeviceService {
 
     public Optional<List<DeviceOutput>> getAllDevices(Long pageNum){
         return deviceRepository.fetchAllDevices(pageNum);
+    }
+
+    public Optional<Long> getNumberOfDevices(){
+        return deviceRepository.getNumberOfDevices();
     }
 }

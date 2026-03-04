@@ -11,8 +11,9 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+
+import com.example.appspringdata.Utils.DeviceOutput;
 import com.example.appspringdata.Utils.ShelfOutput;
-import com.example.appspringdata.Utils.ShelfPositionOutput;
 
 import org.neo4j.driver.Record;
 
@@ -23,7 +24,7 @@ public class ShelfRepository {
 
     private static final String DATABASE = "neo4j";
 
-    public Optional<List<ShelfOutput>> getAllShelfPositions(Long pageNum){
+    public Optional<Long> getNumberOfShelves() {
         SessionConfig sessionConfig = SessionConfig.builder()
                 .withDatabase(DATABASE)
                 .withDefaultAccessMode(AccessMode.READ)
@@ -32,7 +33,97 @@ public class ShelfRepository {
         try (Session session = driver.session(sessionConfig)) {
             String cypher = """
                     MATCH (s:Shelf {isDeleted:FALSE})
-                    RETURN 
+                    RETURN
+                        count(s) AS numberOfShelves;
+                    """;
+
+            Long count = session.executeRead(tx -> {
+                var result = tx.run(cypher);
+                if (result.hasNext()) {
+                    var record = result.next();
+                    return record.get("numberOfShelves").asLong();
+                }
+                return null;
+            });
+
+            return Optional.ofNullable(count).map(Long::longValue);
+        }
+    }
+
+    public Optional<List<ShelfOutput>> getShelfByName(String shelfName) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher="""
+                    MATCH (s:Shelf {isDeleted:FALSE,shelfName:$shelfName})
+                    RETURN
+                        s.shelfId as shelfId,
+                        s.createdAt as createdAt,
+                        s.isDeleted as isDeleted,
+                        s.partNumber as partNumber,
+                        s.shelfName as shelfName,
+                        s.updatedAt as updatedAt
+                    """;
+            return session.executeRead(tx -> {
+                List<Record> records = tx.run(cypher, Map.of("shelfName", shelfName)).list();
+                List<ShelfOutput> deviceList = new ArrayList<>();
+                for (Record record : records) {
+                    deviceList.add(mapToShelf(record));
+                }
+                return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
+            });
+        } catch (Exception e) {
+            System.err.println("Error fetching device: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to fetch device " + shelfName, e);
+        }
+    }
+
+    public Optional<List<ShelfOutput>> getShelfByPartNumber(String partNumber){
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher="""
+                    MATCH (s:Shelf {isDeleted:FALSE,partNumber:$partNumber})
+                    RETURN
+                        s.shelfId as shelfId,
+                        s.createdAt as createdAt,
+                        s.isDeleted as isDeleted,
+                        s.partNumber as partNumber,
+                        s.shelfName as shelfName,
+                        s.updatedAt as updatedAt
+                    """;
+            return session.executeRead(tx -> {
+                List<Record> records = tx.run(cypher, Map.of("partNumber", partNumber)).list();
+                List<ShelfOutput> deviceList = new ArrayList<>();
+                for (Record record : records) {
+                    deviceList.add(mapToShelf(record));
+                }
+                return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
+            });
+        } catch (Exception e) {
+            System.err.println("Error fetching device: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to fetch device " + partNumber, e);
+        }
+    }
+
+    public Optional<List<ShelfOutput>> getAllShelfPositions(Long pageNum) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher = """
+                    MATCH (s:Shelf {isDeleted:FALSE})
+                    RETURN
                         s.shelfId as shelfId,
                         s.createdAt as createdAt,
                         s.isDeleted as isDeleted,
@@ -59,86 +150,86 @@ public class ShelfRepository {
         }
     }
 
-    public Optional<ShelfOutput> getShelfById(String shelfId){
+    public Optional<ShelfOutput> getShelfById(String shelfId) {
         SessionConfig sessionConfig = SessionConfig.builder()
                 .withDatabase(DATABASE)
                 .withDefaultAccessMode(AccessMode.READ)
                 .build();
-        
+
         try (Session session = driver.session(sessionConfig)) {
-            String cypher= """
-                MATCH (s:Shelf {shelfId:$shelfId,isDeleted:FALSE})
-                RETURN 
-                s.shelfId as shelfId,
-                s.createdAt as createdAt,
-                s.isDeleted as isDeleted,
-                s.partNumber as partNumber,
-                s.shelfName as shelfName,
-                s.updatedAt as updatedAt;
-            """;
+            String cypher = """
+                        MATCH (s:Shelf {shelfId:$shelfId,isDeleted:FALSE})
+                        RETURN
+                        s.shelfId as shelfId,
+                        s.createdAt as createdAt,
+                        s.isDeleted as isDeleted,
+                        s.partNumber as partNumber,
+                        s.shelfName as shelfName,
+                        s.updatedAt as updatedAt;
+                    """;
 
             return session.executeWrite(tx -> {
-                List<Record> records = tx.run(cypher, Map.of("shelfId",shelfId)).list();
+                List<Record> records = tx.run(cypher, Map.of("shelfId", shelfId)).list();
                 if (records.isEmpty()) {
                     return Optional.empty();
                 }
                 return Optional.of(mapToShelf(records.get(0)));
             });
-        }catch(Exception e){
+        } catch (Exception e) {
             throw new RuntimeException("Failed to fetch device " + shelfId, e);
         }
     }
 
-    public Optional<ShelfOutput> saveShelf(String partNumber,String shelfName){
+    public Optional<ShelfOutput> saveShelf(String partNumber, String shelfName) {
         SessionConfig sessionConfig = SessionConfig.builder()
                 .withDatabase(DATABASE)
                 .withDefaultAccessMode(AccessMode.WRITE)
                 .build();
-        
-        try(Session session = driver.session(sessionConfig)){
-            String cypher="""
-                CREATE (s:Shelf {
-                    shelfId:randomUUID(),
-                    isDeleted:false,
-                    createdAt:datetime(),
-                    partNumber:$partNumber,
-                    shelfName:$shelfName,
-                    updatedAt:datetime()
-                })
 
-                RETURN
-                s.shelfId as shelfId,
-                s.createdAt as createdAt,
-                s.isDeleted as isDeleted,
-                s.partNumber as partNumber,
-                s.shelfName as shelfName,
-                s.updatedAt as updatedAt;
-            """;
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher = """
+                        CREATE (s:Shelf {
+                            shelfId:randomUUID(),
+                            isDeleted:false,
+                            createdAt:datetime(),
+                            partNumber:$partNumber,
+                            shelfName:$shelfName,
+                            updatedAt:datetime()
+                        })
 
-            HashMap<String,Object> params=new HashMap<>();
-            params.put("partNumber",partNumber);
-            params.put("shelfName",shelfName);
+                        RETURN
+                        s.shelfId as shelfId,
+                        s.createdAt as createdAt,
+                        s.isDeleted as isDeleted,
+                        s.partNumber as partNumber,
+                        s.shelfName as shelfName,
+                        s.updatedAt as updatedAt;
+                    """;
 
-            return session.executeWrite(tx->{
-                List<Record> records=tx.run(cypher,params).list();
+            HashMap<String, Object> params = new HashMap<>();
+            params.put("partNumber", partNumber);
+            params.put("shelfName", shelfName);
+
+            return session.executeWrite(tx -> {
+                List<Record> records = tx.run(cypher, params).list();
                 if (records.isEmpty()) {
                     return Optional.empty();
                 }
                 return Optional.of(mapToShelf(records.get(0)));
             });
-        }catch(Exception e){
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public boolean deleteShelf(String shelfId){
+    public boolean deleteShelf(String shelfId) {
         SessionConfig sessionConfig = SessionConfig.builder()
                 .withDatabase(DATABASE)
                 .withDefaultAccessMode(AccessMode.WRITE)
                 .build();
-        
-        try (Session session=driver.session(sessionConfig)){
-            String cypher="""
+
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher = """
                     MATCH (s:Shelf {shelfId:$shelfId,isDeleted:FALSE})
                     OPTIONAL MATCH (s)<-[r:HAS {isDeleted:FALSE}]-(sh:ShelfPosition {isDeleted:FALSE})
                     SET s.isDeleted = true,
@@ -148,8 +239,8 @@ public class ShelfRepository {
                     """;
             Map<String, Object> params = Map.of("shelfId", shelfId);
 
-            return session.executeWrite(tx->{
-                List<Record> records=tx.run(cypher,params).list();
+            return session.executeWrite(tx -> {
+                List<Record> records = tx.run(cypher, params).list();
                 return !records.isEmpty();
             });
         } catch (Exception e) {
@@ -157,19 +248,19 @@ public class ShelfRepository {
         }
     }
 
-    public Optional<ShelfOutput> updateShelf(String shelfId,String shelfName,String partNumber){
-        SessionConfig sessionConfig=SessionConfig.builder()
-                                    .withDatabase(DATABASE)
-                                    .withDefaultAccessMode(AccessMode.WRITE)
-                                    .build();
-        
-        try(Session session=driver.session(sessionConfig)){
-            String cypher="""
+    public Optional<ShelfOutput> updateShelf(String shelfId, String shelfName, String partNumber) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.WRITE)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher = """
                     MATCH (s:Shelf {shelfId:$shelfId ,isDeleted:FALSE})
                     SET s.shelfName=$shelfName,
                         s.partNumber=$partNumber,
                         s.updatedAt=datetime()
-                    RETURN 
+                    RETURN
                         s.shelfId as shelfId,
                         s.createdAt as createdAt,
                         s.isDeleted as isDeleted,
@@ -177,26 +268,26 @@ public class ShelfRepository {
                         s.shelfName as shelfName,
                         s.updatedAt as updatedAt;
                     """;
-            Map<String,Object> params=new HashMap<>();
+            Map<String, Object> params = new HashMap<>();
             params.put("shelfId", shelfId);
-            params.put("shelfName",shelfName);
-            params.put("partNumber",partNumber);
+            params.put("shelfName", shelfName);
+            params.put("partNumber", partNumber);
 
-            return session.executeWrite(tx->{
-                List<Record> records=tx.run(cypher,params).list();
-                if (records.isEmpty()){
+            return session.executeWrite(tx -> {
+                List<Record> records = tx.run(cypher, params).list();
+                if (records.isEmpty()) {
                     return Optional.empty();
-                }else{
+                } else {
                     return Optional.of(mapToShelf(records.get(0)));
                 }
             });
-        }catch(Exception e){
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     private ShelfOutput mapToShelf(Record record) {
-        ShelfOutput s=new ShelfOutput(null, null);
+        ShelfOutput s = new ShelfOutput(null, null);
         System.out.println(record.get("shelfId").asString());
         s.setShelfId(record.get("shelfId").asString());
         s.setCreatedAt(record.get("createdAt").asZonedDateTime());

@@ -27,10 +27,21 @@ public class ShelfController {
         this.shelfService=shelfService;
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/byId/{id}")
     public ResponseEntity<ShelfOutput> getShelfById(@PathVariable String id){
         Optional<ShelfOutput> shelf=shelfService.getShelfId(id);
+        return shelf.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+    }
 
+    @GetMapping("/byShelfName/{shelfname}")
+    public ResponseEntity<List<ShelfOutput>> getShelfByName(@PathVariable String shelfname){
+        Optional<List<ShelfOutput>> shelf=shelfService.getShelByfName(shelfname);
+        return shelf.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/byPartNumber/{partnumber}")
+    public ResponseEntity<List<ShelfOutput>> getShelfByPartNumber(@PathVariable String partnumber){
+        Optional<List<ShelfOutput>> shelf=shelfService.getShelfbyPartnumber(partnumber);
         return shelf.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
     }
 
@@ -64,5 +75,12 @@ public class ShelfController {
         Optional<List<ShelfOutput>> shelf=shelfService.getAllShelfs(pageNum);
 
         return shelf.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/getNumberOfShelves")
+    public ResponseEntity<Long> getNumberOfShelves(){
+        Optional<Long> num=shelfService.getNumberOfShelves();
+
+        return num.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
     }
 }

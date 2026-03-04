@@ -26,6 +26,34 @@ public class DeviceRepository {
 
     private static final String DATABASE = "neo4j";
 
+    public Optional<Long> getNumberOfDevices() {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+            String cypher = """
+                    MATCH (d:Device {isDeleted:FALSE})
+                    RETURN count(d) AS numDevices;
+                    """;
+
+            Long count = session.executeRead(tx -> {
+                var result = tx.run(cypher);
+                if (result.hasNext()) {
+                    var record = result.next();
+                    return record.get("numDevices").asLong();
+                }
+                return null;
+            });
+
+            return Optional.ofNullable(count).map(Long::longValue);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error retrieving the number of devices", e);
+        }
+    }
+
     public Optional<List<DeviceOutput>> fetchAllDevices(Long pageNum) {
         SessionConfig sessionConfig = SessionConfig.builder()
                 .withDatabase(DATABASE)
@@ -51,7 +79,7 @@ public class DeviceRepository {
                     shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
                     shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
                     shelfCreatedAt:sh.createdAt}) AS shelfPositions
-                    SKIP $pageNum LIMIT 50;
+                    SKIP $pageNum*50 LIMIT 50;
                     """;
 
             List<DeviceOutput> list = session.executeRead(tx -> {
@@ -66,6 +94,176 @@ public class DeviceRepository {
             return list.isEmpty() ? Optional.empty() : Optional.of(list);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public Optional<List<DeviceOutput>> getDevicebyDeviceName(String deviceName) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+
+            String cypher = """
+                    MATCH (d:Device {deviceName: $deviceName,isDeleted:FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
+                    RETURN d.deviceId AS deviceId,
+                           d.deviceName AS deviceName,
+                           d.partNumber AS partNumber,
+                           d.buildingName AS buildingName,
+                           d.deviceType AS deviceType,
+                           d.isDeleted AS isDeleted,
+                           d.createdAt AS createdAt,
+                           d.updatedAt AS updatedAt,
+                           d.numShelfPositions AS numberOfShelfPositions,
+                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
+                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
+                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
+                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
+                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    """;
+
+            return session.executeRead(tx -> {
+                List<Record> records = tx.run(cypher, Map.of("deviceName", deviceName)).list();
+                List<DeviceOutput> deviceList = new ArrayList<>();
+                for (Record record : records) {
+                    deviceList.add(mapToDevice(record));
+                }
+                return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
+            });
+
+        } catch (Exception e) {
+            System.err.println("Error fetching device: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to fetch device " + deviceName, e);
+        }
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByPartNumber(String partNumber) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+
+            String cypher = """
+                    MATCH (d:Device {partNumber: $partNumber,isDeleted:FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
+                    RETURN d.deviceId AS deviceId,
+                           d.deviceName AS deviceName,
+                           d.partNumber AS partNumber,
+                           d.buildingName AS buildingName,
+                           d.deviceType AS deviceType,
+                           d.isDeleted AS isDeleted,
+                           d.createdAt AS createdAt,
+                           d.updatedAt AS updatedAt,
+                           d.numShelfPositions AS numberOfShelfPositions,
+                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
+                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
+                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
+                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
+                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    """;
+
+            return session.executeRead(tx -> {
+                List<Record> records = tx.run(cypher, Map.of("partNumber", partNumber)).list();
+                List<DeviceOutput> deviceList = new ArrayList<>();
+                for (Record record : records) {
+                    deviceList.add(mapToDevice(record));
+                }
+                return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
+            });
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch device " + partNumber, e);
+        }
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByBuildingName(String buildingName) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+
+            String cypher = """
+                    MATCH (d:Device {buildingName: $buildingName,isDeleted:FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
+                    RETURN d.deviceId AS deviceId,
+                           d.deviceName AS deviceName,
+                           d.partNumber AS partNumber,
+                           d.buildingName AS buildingName,
+                           d.deviceType AS deviceType,
+                           d.isDeleted AS isDeleted,
+                           d.createdAt AS createdAt,
+                           d.updatedAt AS updatedAt,
+                           d.numShelfPositions AS numberOfShelfPositions,
+                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
+                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
+                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
+                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
+                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    """;
+
+            return session.executeRead(tx -> {
+                List<Record> records = tx.run(cypher, Map.of("buildingName", buildingName)).list();
+                List<DeviceOutput> deviceList = new ArrayList<>();
+                for (Record record : records) {
+                    deviceList.add(mapToDevice(record));
+                }
+                return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
+            });
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch device " + buildingName, e);
+        }
+    }
+
+    public Optional<List<DeviceOutput>> getDeviceByDeviceType(String deviceType) {
+        SessionConfig sessionConfig = SessionConfig.builder()
+                .withDatabase(DATABASE)
+                .withDefaultAccessMode(AccessMode.READ)
+                .build();
+
+        try (Session session = driver.session(sessionConfig)) {
+
+            String cypher = """
+                    MATCH (d:Device {deviceType: $deviceType,isDeleted:FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
+                    RETURN d.deviceId AS deviceId,
+                           d.deviceName AS deviceName,
+                           d.partNumber AS partNumber,
+                           d.buildingName AS buildingName,
+                           d.deviceType AS deviceType,
+                           d.isDeleted AS isDeleted,
+                           d.createdAt AS createdAt,
+                           d.updatedAt AS updatedAt,
+                           d.numShelfPositions AS numberOfShelfPositions,
+                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
+                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
+                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
+                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
+                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    """;
+
+            return session.executeRead(tx -> {
+                List<Record> records = tx.run(cypher, Map.of("deviceType", deviceType)).list();
+                List<DeviceOutput> deviceList = new ArrayList<>();
+                for (Record record : records) {
+                    deviceList.add(mapToDevice(record));
+                }
+                return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
+            });
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch device " + deviceType, e);
         }
     }
 
@@ -244,7 +442,7 @@ public class DeviceRepository {
         d.setDeviceType(getString(rec, "deviceType"));
         d.setCreatedAt(getZonedDateTime(rec, "createdAt"));
         d.setUpdatedAt(getZonedDateTime(rec, "updatedAt"));
-        d.setNumberOfShelfPositions(getLong(rec,"numberOfShelfPositions"));
+        d.setNumberOfShelfPositions(getLong(rec, "numberOfShelfPositions"));
         Iterable<Value> values = rec.get("shelfPositions").values();
         System.out.println(values);
         List<ShelfPositionOutput> shelfPositions = new ArrayList<>();

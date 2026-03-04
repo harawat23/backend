@@ -34,9 +34,40 @@ public class DeviceController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/byId/{id}")
     public ResponseEntity<DeviceOutput> getDeviceById(@PathVariable String id) {
         Optional<DeviceOutput> device = deviceService.getDeviceById(id);
+
+        return device.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/byDeviceName/{name}")
+    public ResponseEntity<List<DeviceOutput>> getDevicebyDeviceName(@PathVariable String name) {
+        Optional<List<DeviceOutput>> device = deviceService.getDeviceByDevicename(name);
+
+        return device.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/byPartNumber/{partnumber}")
+    public ResponseEntity<List<DeviceOutput>> getPartNumber(@PathVariable String partnumber) {
+        Optional<List<DeviceOutput>> device = deviceService.getDeviceByPartNumber(partnumber);
+
+        return device.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/byBuildingName/{buildingName}")
+    public ResponseEntity<List<DeviceOutput>> getBuildingName(@PathVariable String buildingName){
+        Optional<List<DeviceOutput>> device=deviceService.getDeviceByBuildingName(buildingName);
+        return device.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("byDeviceType/{deviceType}")
+    public ResponseEntity<List<DeviceOutput>> getDeviceType(@PathVariable String deviceType){
+        Optional<List<DeviceOutput>> device=deviceService.getDeviceByDeviceType(deviceType);
 
         return device.map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -77,5 +108,12 @@ public class DeviceController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/getNumberOfDevices")
+    public ResponseEntity<Long> getNumberOfDevices(){
+        Optional<Long> num=deviceService.getNumberOfDevices();
+        return num.map(ResponseEntity::ok)
+            .orElseGet(()->ResponseEntity.notFound().build());
     }
 }

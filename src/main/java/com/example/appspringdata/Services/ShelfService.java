@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.example.appspringdata.Entity.Shelf;
 import com.example.appspringdata.Repositories.ShelfRepository;
 import com.example.appspringdata.Utils.ShelfOutput;
 
@@ -21,6 +20,14 @@ public class ShelfService {
         return shelfRepository.getShelfById(shelfId);
     }
 
+    public Optional<List<ShelfOutput>> getShelByfName(String shelfName){
+        return shelfRepository.getShelfByName(shelfName);
+    }
+
+    public Optional<List<ShelfOutput>> getShelfbyPartnumber(String partNumber){
+        return shelfRepository.getShelfByPartNumber(partNumber);
+    }
+
     public Optional<ShelfOutput> saveShelf(String partNumber,String shelfName){
         return shelfRepository.saveShelf(partNumber, shelfName);
     }
@@ -35,5 +42,9 @@ public class ShelfService {
 
     public Optional<List<ShelfOutput>> getAllShelfs(Long pageNum){
         return shelfRepository.getAllShelfPositions(pageNum);
+    }
+
+    public Optional<Long> getNumberOfShelves(){
+        return shelfRepository.getNumberOfShelves();
     }
 }
