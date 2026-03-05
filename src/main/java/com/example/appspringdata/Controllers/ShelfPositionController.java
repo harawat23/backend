@@ -2,6 +2,9 @@ package com.example.appspringdata.Controllers;
 
 import java.util.List;
 import java.util.Optional;
+import com.example.appspringdata.Exceptions.BadRequestsException;
+import com.example.appspringdata.Exceptions.OperationFailedException;
+import com.example.appspringdata.Exceptions.ResourceNotFoundException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -30,48 +33,69 @@ public class ShelfPositionController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ShelfPositionOutput> getShelfPositionById(@PathVariable String id){
-        Optional<ShelfPositionOutput> shelfPositionOutput=shelfPositionService.getShelfPositionById(id);
+        if (id==null || id.trim().isEmpty()){
+          throw new BadRequestsException("id is invalid");  
+        }
+        ShelfPositionOutput shelfPositionOutput=shelfPositionService.getShelfPositionById(id).orElseThrow(()->new ResourceNotFoundException("unable to find shelf position with id : "+id));
 
-        return shelfPositionOutput.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+        return ResponseEntity.ok(shelfPositionOutput);
     }
 
     @PostMapping("/save")
     public ResponseEntity<ShelfPositionOutput> saveShelfPosition(@RequestBody ShelfPositionInput shelfPositionInput){
-        System.out.println(shelfPositionInput.getDeviceId());
-        Optional<ShelfPositionOutput> shelfPositionOutput=shelfPositionService.saveShelfPosition(shelfPositionInput.getDeviceId());
+        // System.out.println(shelfPositionInput.getDeviceId());
+        if (shelfPositionInput==null || shelfPositionInput.getDeviceId()==null || shelfPositionInput.getDeviceId().trim().isEmpty()){
+            throw new BadRequestsException("invalid input");
+        }
+        ShelfPositionOutput shelfPositionOutput=shelfPositionService.saveShelfPosition(shelfPositionInput.getDeviceId()).orElseThrow(()->new ResourceNotFoundException("unable to find the shelfPosition"));
 
-        return shelfPositionOutput.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+        return ResponseEntity.ok(shelfPositionOutput);
     }
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<Boolean> deleteShelfPosition(@PathVariable String id){
+        if (id==null || id.trim().isEmpty()){
+            throw new BadRequestsException("invalid input");
+        }
         boolean flag=shelfPositionService.deleteShelfPosition(id);
 
         if (flag){
             return ResponseEntity.noContent().build();
         }else{
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException("shelf position not found");
         } 
     }
 
     @PutMapping("attachshelf/{shelfpositionid}/{shelfid}")
     public ResponseEntity<ShelfPositionOutput> attachShelf(@PathVariable String shelfpositionid,@PathVariable String shelfid){
-        Optional<ShelfPositionOutput> shelfPositionOutput=shelfPositionService.attachShelfPosition(shelfpositionid, shelfid);
+        if (shelfpositionid==null || shelfpositionid.trim().isEmpty() || shelfid==null || shelfid.trim().isEmpty()){
+            throw new BadRequestsException("invalid input");
+        }
 
-        return shelfPositionOutput.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+        ShelfPositionOutput shelfPositionOutput=shelfPositionService.attachShelfPosition(shelfpositionid, shelfid).orElseThrow(()->new ResourceNotFoundException("unable to find shelf position or shelf"));
+
+        return ResponseEntity.ok(shelfPositionOutput);
     }
 
     @PutMapping("detachshelf/{shelfpositionid}/{shelfid}")
     public ResponseEntity<ShelfPositionOutput> detachShelf(@PathVariable String shelfpositionid,@PathVariable String shelfid){
-        Optional<ShelfPositionOutput> shelfPositionOutput=shelfPositionService.deteachShelfPosition(shelfpositionid, shelfid);
+        if (shelfpositionid==null || shelfpositionid.trim().isEmpty() || shelfid==null || shelfid.trim().isEmpty()){
+            throw new BadRequestsException("invalid input");
+        }
+
+        ShelfPositionOutput shelfPositionOutput=shelfPositionService.deteachShelfPosition(shelfpositionid, shelfid).orElseThrow(()->new ResourceNotFoundException("unable to find shelf position or shelf"));
     
-        return shelfPositionOutput.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+        return ResponseEntity.ok(shelfPositionOutput);
     }
 
     @GetMapping("fetchAll/{pageNum}")
     public ResponseEntity<List<ShelfPositionOutput>> getAllShelfPositions(@PathVariable Long pageNum){
-        Optional<List<ShelfPositionOutput>> shelfPositionOutput=shelfPositionService.getAllShelfPositions(pageNum);
+        if (pageNum<0){
+            throw new BadRequestsException("page number must be >=0");
+        }
 
-        return shelfPositionOutput.map(ResponseEntity::ok).orElseGet(()->ResponseEntity.notFound().build());
+        List<ShelfPositionOutput> shelfPositionOutput=shelfPositionService.getAllShelfPositions(pageNum).orElseThrow(()->new OperationFailedException("Unable to fecth devices"));
+
+        return ResponseEntity.ok(shelfPositionOutput);
     }
 }

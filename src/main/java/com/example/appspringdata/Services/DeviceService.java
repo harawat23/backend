@@ -5,7 +5,6 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.example.appspringdata.Entity.Device;
 import com.example.appspringdata.Repositories.DeviceRepository;
 import com.example.appspringdata.Utils.DeviceOutput;
 

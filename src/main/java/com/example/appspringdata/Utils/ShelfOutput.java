@@ -8,7 +8,7 @@ public class ShelfOutput {
     private String shelfId;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
-    
+
     public ZonedDateTime getCreatedAt() {
         return this.createdAt;
     }
@@ -49,10 +49,23 @@ public class ShelfOutput {
         this.shelfName = shelfName;
     }
 
-    public ShelfOutput(String partNumber,String shelfName) {
-        this.partNumber=partNumber;
-        this.shelfName=shelfName;
+    public ShelfOutput(String partNumber, String shelfName) {
+        this.partNumber = partNumber;
+        this.shelfName = shelfName;
     }
 
-    public ShelfOutput(){}
+    public ShelfOutput(String partNumber,
+            String shelfName,
+            String shelfId,
+            ZonedDateTime createdAt,
+            ZonedDateTime updatedAt) {
+        this.partNumber = partNumber;
+        this.shelfName = shelfName;
+        this.shelfId = shelfId;
+        this.updatedAt = updatedAt;
+        this.createdAt = createdAt;
+    }
+
+    public ShelfOutput() {
+    }
 }

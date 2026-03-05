@@ -12,9 +12,9 @@ import org.neo4j.driver.SessionConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import com.example.appspringdata.Utils.DeviceOutput;
+import com.example.appspringdata.Exceptions.ConflictException;
+import com.example.appspringdata.Exceptions.OperationFailedException;
 import com.example.appspringdata.Utils.ShelfOutput;
-import com.example.appspringdata.Utils.ShelfPositionInput;
 import com.example.appspringdata.Utils.ShelfPositionOutput;
 
 @Repository
@@ -58,9 +58,7 @@ public class ShelfPositionRepository {
 
             return list.isEmpty() ? Optional.empty() : Optional.of(list);
         } catch (Exception e) {
-            System.out.println("**********");
-            System.out.println(e);
-            throw new RuntimeException(e);
+            throw new OperationFailedException("failed to fetch all shelfs");
         }
     }
 
@@ -95,9 +93,7 @@ public class ShelfPositionRepository {
                 }
             });
         } catch (Exception e) {
-            System.out.println("**********");
-            System.out.println(e);
-            throw new RuntimeException(e);
+            throw new OperationFailedException("failed to fetch "+shelfPositionId);
         }
     }
 
@@ -138,7 +134,7 @@ public class ShelfPositionRepository {
                 }
             });
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("Failed to create shelf position for "+deviceId);
         }
     }
 
@@ -148,6 +144,22 @@ public class ShelfPositionRepository {
                 .withDefaultAccessMode(AccessMode.WRITE)
                 .build();
         try (Session session = driver.session(sessionConfig)) {
+            String query1="""
+                    MATCH (s:ShelfPosition {shelfPosId:$shelfPositionId})
+                    RETURN s.isDeleted AS isDeleted;
+                    """;
+            Optional<Boolean> deletionState=session.executeRead(tx->{
+                List<Record> records=tx.run(query1,Map.of("shelfPositionId",shelfPositionId)).list();
+                if (records.isEmpty()){
+                    Optional.empty();
+                }
+                return Optional.of(records.get(0).get("isDeleted").asBoolean());
+            });
+
+            if (deletionState.get()==true){
+                throw new ConflictException("The shelfPosition is Already deleted "+shelfPositionId);
+            }
+
             String cypher = """
                     MATCH (s:ShelfPosition {shelfPosId: $shelfPositionId , isDeleted:FALSE})
                     MATCH (s)<-[r1:HAS]-(d:Device)
@@ -169,7 +181,7 @@ public class ShelfPositionRepository {
                 return !record.isEmpty();
             });
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("Failed to delete shelf position "+shelfPositionId);
         }
 
     }
@@ -217,6 +229,45 @@ public class ShelfPositionRepository {
                 return Optional.empty();
             }
 
+            String isAttachedQuery="""
+                    MATCH (s:ShelfPosition {shelfPosId:$shelfPositionId,isDeleted:False})
+                    -[r:HAS {isDeleted:False}]->
+                    (sh:Shelf {shelfId:$shelfId,isDeleted:False})
+                    return r;
+                    """;
+            
+            boolean relationExists=session.executeRead(tx->{
+                List<Record> records=tx.run(isAttachedQuery,Map.of("shelfId",shelfId,"shelfPositionId",shelfPositionId)).list();
+                if (records.isEmpty()){
+                    return false;
+                }
+
+                return true;
+            });
+
+            if (relationExists){
+                throw new ConflictException("The shelf is already attached to shelf position");
+            }
+
+            String isShelfPositionLinkedQuery="""
+                    MATCH (s:ShelfPosition {shelfPosId:$shelfPositionId,isDeleted:False})
+                    -[r:HAS {isDeleted:False}]->(sh:Shelf {isDeleted:False})
+                    RETURN r;
+                    """;
+
+            boolean shelfPositionLinked=session.executeRead(tx->{
+                List<Record> records=tx.run(isShelfPositionLinkedQuery,Map.of("shelfPositionId",shelfPositionId)).list();
+                if (records.isEmpty()){
+                    return false;
+                }
+
+                return true;
+            });
+
+            if (shelfPositionLinked){
+                throw new ConflictException("The shelf position is already attached to another shelf");
+            }
+
             String cypher = """
                     MATCH (s:ShelfPosition {shelfPosId: $shelfPositionId,isDeleted:FALSE})
                     MATCH (sh:Shelf {shelfId: $shelfId,isDeleted:FALSE})
@@ -249,7 +300,7 @@ public class ShelfPositionRepository {
                 }
             });
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("Failed to attach shelf");
         }
     }
 
@@ -261,6 +312,57 @@ public class ShelfPositionRepository {
                 .build();
 
         try (Session session = driver.session(sessionConfig)) {
+            String shelfPositionExistsQuery="""
+                    MATCH (s:ShelfPosition {shelfPosId:$shelfPositionId,isDeleted:False})
+                    RETURN s.shelfPosId AS shelfPositionId;
+                    """;
+            String shelfExistsQuery="""
+                    MATCH (s:Shelf {shelfId:$shelfId,isDeleted:False})
+                    return s.shelfId AS shelfId;
+                    """;
+
+            boolean shelfPositionExists=session.executeRead(tx->{
+                List<Record> records=tx.run(shelfPositionExistsQuery,Map.of("shelfPositionId",shelfPositionId)).list();
+                if (records.isEmpty()){
+                    return false;
+                }
+
+                return true;
+            });
+
+            boolean shelfExists=session.executeRead(tx->{
+                List<Record> records=tx.run(shelfExistsQuery,Map.of("shelfId",shelfId)).list();
+                if (records.isEmpty()){
+                    return false;
+                }
+
+                return true;
+            });
+
+            if (!(shelfPositionExists && shelfExists)){
+                return Optional.empty();
+            }
+
+            String relationExistsQuery="""
+                    Match (s:ShelfPosition {shelfPosId:$shelfPositionId,isDeleted:False})
+                    -[r:HAS {isDeleted:False}]->
+                    (sh:Shelf {shelfId:$shelfId,isDeleted:False})
+                    RETURN r;
+                    """;
+            
+            boolean relationExists=session.executeRead(tx->{
+                List<Record> records=tx.run(relationExistsQuery,Map.of("shelfId",shelfId,"shelfPositionId",shelfPositionId)).list();
+                if (records.isEmpty()){
+                    return false;
+                }
+
+                return true;
+            });
+
+            if (!relationExists){
+                throw new ConflictException("The shelf and shelfposition are not connected");
+            }
+
             String cypher = """
                         MATCH (s:ShelfPosition {shelfPosId:$shelfPositionId,isDeleted:FALSE})-[r:HAS {isDeleted:FALSE}]->(sh:Shelf {shelfId:$shelfId,isDeleted:FALSE})
                         MATCH (s)<-[r1:HAS {isDeleted:FALSE}]-(d:Device)
@@ -283,7 +385,7 @@ public class ShelfPositionRepository {
                 }
             });
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("Failed to detach shelf and shelfposition");
         }
     }
 

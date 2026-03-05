@@ -2,6 +2,10 @@ package com.example.appspringdata.Controllers;
 
 import java.util.List;
 import java.util.Optional;
+import com.example.appspringdata.Exceptions.BadRequestsException;
+import com.example.appspringdata.Exceptions.OperationFailedException;
+import com.example.appspringdata.Exceptions.ResourceNotFoundException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,95 +29,157 @@ public class DeviceController {
     public DeviceController(DeviceService deviceService) {
         this.deviceService = deviceService;
     }
-    
-    @GetMapping("fetchAll/{pageNum}")
-    public ResponseEntity<List<DeviceOutput>> fetchAllDevices(@PathVariable Long pageNum){
-        Optional<List<DeviceOutput>> device = deviceService.getAllDevices(pageNum);
 
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    @GetMapping("fetchAll/{pageNum}")
+    public ResponseEntity<List<DeviceOutput>> fetchAllDevices(@PathVariable Long pageNum) {
+        if (pageNum < 0L) {
+            throw new BadRequestsException("page number must be > 0");
+        }
+        List<DeviceOutput> device = deviceService.getAllDevices(pageNum)
+                .orElseThrow(() -> new ResourceNotFoundException("no device found"));
+
+        return ResponseEntity.ok(device);
+
     }
 
     @GetMapping("/byId/{id}")
     public ResponseEntity<DeviceOutput> getDeviceById(@PathVariable String id) {
-        Optional<DeviceOutput> device = deviceService.getDeviceById(id);
+        if (id == null || id.trim().isEmpty()) {
+            throw new BadRequestsException("Device Id is required");
+        }
+        DeviceOutput device = deviceService.getDeviceById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Device Not found with id : " + id));
 
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(device);
     }
 
     @GetMapping("/byDeviceName/{name}")
     public ResponseEntity<List<DeviceOutput>> getDevicebyDeviceName(@PathVariable String name) {
-        Optional<List<DeviceOutput>> device = deviceService.getDeviceByDevicename(name);
+        if (name == null || name.trim().isEmpty()) {
+            throw new BadRequestsException("Device name is required");
+        }
 
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        List<DeviceOutput> device = deviceService.getDeviceByDevicename(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Device Not found with name : " + name));
+
+        return ResponseEntity.ok(device);
     }
 
     @GetMapping("/byPartNumber/{partnumber}")
     public ResponseEntity<List<DeviceOutput>> getPartNumber(@PathVariable String partnumber) {
-        Optional<List<DeviceOutput>> device = deviceService.getDeviceByPartNumber(partnumber);
+        if (partnumber == null || partnumber.trim().isEmpty()) {
+            throw new BadRequestsException("Device name is required");
+        }
 
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        List<DeviceOutput> device = deviceService.getDeviceByPartNumber(partnumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Device Not found with partnumber : " + partnumber));
+
+        return ResponseEntity.ok(device);
     }
 
     @GetMapping("/byBuildingName/{buildingName}")
-    public ResponseEntity<List<DeviceOutput>> getBuildingName(@PathVariable String buildingName){
-        Optional<List<DeviceOutput>> device=deviceService.getDeviceByBuildingName(buildingName);
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<List<DeviceOutput>> getBuildingName(@PathVariable String buildingName) {
+        if (buildingName == null || buildingName.trim().isEmpty()) {
+            throw new BadRequestsException("Device name is required");
+        }
+
+        List<DeviceOutput> device = deviceService.getDeviceByBuildingName(buildingName)
+                .orElseThrow(() -> new ResourceNotFoundException("Device Not found with building name : " + buildingName));
+
+        return ResponseEntity.ok(device);
     }
 
     @GetMapping("byDeviceType/{deviceType}")
-    public ResponseEntity<List<DeviceOutput>> getDeviceType(@PathVariable String deviceType){
-        Optional<List<DeviceOutput>> device=deviceService.getDeviceByDeviceType(deviceType);
+    public ResponseEntity<List<DeviceOutput>> getDeviceType(@PathVariable String deviceType) {
+        if (deviceType == null || deviceType.trim().isEmpty()) {
+            throw new BadRequestsException("Device name is required");
+        }
 
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        List<DeviceOutput> device = deviceService.getDeviceByDeviceType(deviceType)
+                .orElseThrow(() -> new ResourceNotFoundException("Device Not found with device type : " + deviceType));
+
+        return ResponseEntity.ok(device);
     }
 
     @PostMapping("/save")
     public ResponseEntity<DeviceOutput> saveDevice(@RequestBody DeviceInput deviceInput) {
+        if (deviceInput == null) {
+            throw new BadRequestsException("device input is null");
+        }
+
+        if (deviceInput.getBuildingName() == null || deviceInput.getBuildingName() == "\t"
+                || deviceInput.getBuildingName() == "\n" || deviceInput.getBuildingName().trim().isEmpty()
+                || deviceInput.getDeviceName() == null || deviceInput.getDeviceName() == "\t"
+                || deviceInput.getDeviceName() == "\n" || deviceInput.getDeviceName().trim().isEmpty()
+                || deviceInput.getDeviceType() == null || deviceInput.getDeviceType() == "\t"
+                || deviceInput.getDeviceType() == "\n" || deviceInput.getDeviceType().trim().isEmpty()
+                || deviceInput.getPartNumber() == null || deviceInput.getPartNumber() == "\t"
+                || deviceInput.getPartNumber() == "\n" || deviceInput.getPartNumber().trim().isEmpty()) {
+            throw new BadRequestsException("fields are invalid");
+        }
         System.out.println("Received DeviceInput: " + deviceInput);
         System.out.println("Building Name: " + deviceInput.getBuildingName());
         System.out.println(deviceInput.getBuildingName());
-        Optional<DeviceOutput> device = deviceService.createDevice(deviceInput.getDeviceType(),
-                deviceInput.getBuildingName(), deviceInput.getPartNumber(), deviceInput.getDeviceName());
+        DeviceOutput device = deviceService.createDevice(deviceInput.getDeviceType(),
+                deviceInput.getBuildingName(), deviceInput.getPartNumber(), deviceInput.getDeviceName())
+                .orElseThrow(() -> new OperationFailedException("Failed to save device"));
 
-        return device.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(device);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<DeviceOutput> updateDevice(@PathVariable String id, @RequestBody DeviceInput deviceInput) {
-        Optional<DeviceOutput> updatedDevice = deviceService.updateDevice(
+        if (deviceInput == null) {
+            throw new BadRequestsException("device input is null");
+        }
+
+        if (deviceInput.getBuildingName() == null || deviceInput.getBuildingName() == "\t"
+                || deviceInput.getBuildingName() == "\n" || deviceInput.getBuildingName().trim().isEmpty()
+                || deviceInput.getDeviceName() == null || deviceInput.getDeviceName() == "\t"
+                || deviceInput.getDeviceName() == "\n" || deviceInput.getDeviceName().trim().isEmpty()
+                || deviceInput.getDeviceType() == null || deviceInput.getDeviceType() == "\t"
+                || deviceInput.getDeviceType() == "\n" || deviceInput.getDeviceType().trim().isEmpty()
+                || deviceInput.getPartNumber() == null || deviceInput.getPartNumber() == "\t"
+                || deviceInput.getPartNumber() == "\n" || deviceInput.getPartNumber().trim().isEmpty()) {
+            throw new BadRequestsException("fields are invalid");
+        }
+
+        if (id == null || id.trim().isEmpty()) {
+            throw new BadRequestsException("id is invalid");
+        }
+
+        DeviceOutput updatedDevice = deviceService.updateDevice(
                 id,
                 deviceInput.getDeviceType(),
                 deviceInput.getBuildingName(),
                 deviceInput.getPartNumber(),
-                deviceInput.getDeviceName());
+                deviceInput.getDeviceName())
+                .orElseThrow(() -> new ResourceNotFoundException("device not found with id " + id));
 
-        return updatedDevice.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(updatedDevice);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDevice(@PathVariable String id) {
         System.out.println(id);
+
+        if (id == null || id.trim().isEmpty()) {
+            throw new BadRequestsException("id is invalid");
+        }
+
         boolean deleted = deviceService.deleteDevice(id);
 
         if (deleted) {
             return ResponseEntity.noContent().build();
         } else {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException("device not found with id " + id);
         }
     }
 
     @GetMapping("/getNumberOfDevices")
-    public ResponseEntity<Long> getNumberOfDevices(){
-        Optional<Long> num=deviceService.getNumberOfDevices();
+    public ResponseEntity<Long> getNumberOfDevices() {
+        Optional<Long> num = deviceService.getNumberOfDevices();
         return num.map(ResponseEntity::ok)
-            .orElseGet(()->ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

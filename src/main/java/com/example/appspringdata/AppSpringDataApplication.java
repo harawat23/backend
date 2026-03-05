@@ -5,7 +5,6 @@ import org.neo4j.cypherdsl.core.renderer.Dialect;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -32,7 +31,7 @@ public class AppSpringDataApplication {
         @Value("${spring.neo4j.authentication.password:secret}") String pass
 	){
 		this.driver = GraphDatabase.driver(uri, AuthTokens.basic(user, pass));
-        this.driver.verifyConnectivity(); // fail fast if misconfigured
+        this.driver.verifyConnectivity(); 
         return this.driver;
     }
    

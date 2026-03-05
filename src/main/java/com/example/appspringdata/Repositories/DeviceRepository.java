@@ -17,6 +17,8 @@ import org.springframework.stereotype.Repository;
 import com.example.appspringdata.Utils.DeviceOutput;
 import com.example.appspringdata.Utils.ShelfOutput;
 import com.example.appspringdata.Utils.ShelfPositionOutput;
+import com.example.appspringdata.Exceptions.ConflictException;
+import com.example.appspringdata.Exceptions.OperationFailedException;
 
 @Repository
 public class DeviceRepository {
@@ -50,7 +52,7 @@ public class DeviceRepository {
             return Optional.ofNullable(count).map(Long::longValue);
 
         } catch (Exception e) {
-            throw new RuntimeException("Error retrieving the number of devices", e);
+            throw new OperationFailedException("Error retrieving the number of devices");
         }
     }
 
@@ -62,24 +64,37 @@ public class DeviceRepository {
 
         try (Session session = driver.session(sessionConfig)) {
             String cypher = """
-                    MATCH (d:Device {isDeleted:FALSE})
-                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
-                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
-                    RETURN d.deviceId AS deviceId,
-                           d.deviceName AS deviceName,
-                           d.partNumber AS partNumber,
-                           d.buildingName AS buildingName,
-                           d.deviceType AS deviceType,
-                           d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt,
-                           d.updatedAt AS updatedAt,
-                           d.numShelfPositions AS numberOfShelfPositions,
-                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
-                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
-                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
-                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
-                    shelfCreatedAt:sh.createdAt}) AS shelfPositions
-                    SKIP $pageNum*50 LIMIT 50;
+                    MATCH (d:Device {isDeleted: FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted: FALSE}]->(s:ShelfPosition {isDeleted: FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted: FALSE}]->(sh:Shelf {isDeleted: FALSE})
+                    RETURN
+                        d.deviceId AS deviceId,
+                        d.deviceName AS deviceName,
+                        d.partNumber AS partNumber,
+                        d.buildingName AS buildingName,
+                        d.deviceType AS deviceType,
+                        d.isDeleted AS isDeleted,
+                        d.createdAt AS createdAt,
+                        d.updatedAt AS updatedAt,
+                        d.numShelfPositions AS numberOfShelfPositions,
+                        collect(
+                            CASE
+                                WHEN s IS NOT NULL THEN {
+                                    shelfPosId: s.shelfPosId,
+                                    shelfPosCreatedAt: s.createdAt,
+                                    shelfPosDeviceId: s.deviceId,
+                                    shelfPosUpdatedAt: s.updatedAt,
+                                    shelfId: sh.shelfId,
+                                    shelfPartNumber: sh.partNumber,
+                                    shelfName: sh.shelfName,
+                                    shelfUpdatedAt: sh.updatedAt,
+                                    shelfCreatedAt: sh.createdAt
+                                }
+                                ELSE null
+                            END
+                        ) AS shelfPositions
+
+                        SKIP $pageNum*50 LIMIT 50;
                     """;
 
             List<DeviceOutput> list = session.executeRead(tx -> {
@@ -93,7 +108,7 @@ public class DeviceRepository {
 
             return list.isEmpty() ? Optional.empty() : Optional.of(list);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("Failed to fetch devices for Page Number : " + pageNum);
         }
     }
 
@@ -106,23 +121,36 @@ public class DeviceRepository {
         try (Session session = driver.session(sessionConfig)) {
 
             String cypher = """
-                    MATCH (d:Device {deviceName: $deviceName,isDeleted:FALSE})
-                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
-                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
-                    RETURN d.deviceId AS deviceId,
-                           d.deviceName AS deviceName,
-                           d.partNumber AS partNumber,
-                           d.buildingName AS buildingName,
-                           d.deviceType AS deviceType,
-                           d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt,
-                           d.updatedAt AS updatedAt,
-                           d.numShelfPositions AS numberOfShelfPositions,
-                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
-                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
-                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
-                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
-                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                        MATCH (d:Device {deviceName: $deviceName, isDeleted: FALSE})
+                        OPTIONAL MATCH (d)-[r1 {isDeleted: FALSE}]->(s:ShelfPosition {isDeleted: FALSE})
+                        OPTIONAL MATCH (s)-[r2 {isDeleted: FALSE}]->(sh:Shelf {isDeleted: FALSE})
+                        RETURN
+                            d.deviceId AS deviceId,
+                            d.deviceName AS deviceName,
+                            d.partNumber AS partNumber,
+                            d.buildingName AS buildingName,
+                            d.deviceType AS deviceType,
+                            d.isDeleted AS isDeleted,
+                            d.createdAt AS createdAt,
+                            d.updatedAt AS updatedAt,
+                            d.numShelfPositions AS numberOfShelfPositions,
+                            collect(
+                                CASE
+                                    WHEN s IS NOT NULL THEN {
+                                        shelfPosId: s.shelfPosId,
+                                        shelfPosCreatedAt: s.createdAt,
+                                        shelfPosDeviceId: s.deviceId,
+                                        shelfPosUpdatedAt: s.updatedAt,
+                                        shelfId: sh.shelfId,
+                                        shelfPartNumber: sh.partNumber,
+                                        shelfName: sh.shelfName,
+                                        shelfUpdatedAt: sh.updatedAt,
+                                        shelfCreatedAt: sh.createdAt
+                                    }
+                                    ELSE null
+                                END
+                            ) AS shelfPositions;
+
                     """;
 
             return session.executeRead(tx -> {
@@ -137,7 +165,7 @@ public class DeviceRepository {
         } catch (Exception e) {
             System.err.println("Error fetching device: " + e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("Failed to fetch device " + deviceName, e);
+            throw new OperationFailedException("Failed to fetch device " + deviceName);
         }
     }
 
@@ -150,23 +178,36 @@ public class DeviceRepository {
         try (Session session = driver.session(sessionConfig)) {
 
             String cypher = """
-                    MATCH (d:Device {partNumber: $partNumber,isDeleted:FALSE})
-                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
-                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
-                    RETURN d.deviceId AS deviceId,
-                           d.deviceName AS deviceName,
-                           d.partNumber AS partNumber,
-                           d.buildingName AS buildingName,
-                           d.deviceType AS deviceType,
-                           d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt,
-                           d.updatedAt AS updatedAt,
-                           d.numShelfPositions AS numberOfShelfPositions,
-                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
-                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
-                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
-                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
-                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    MATCH (d:Device {partNumber: $partNumber, isDeleted: FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted: FALSE}]->(s:ShelfPosition {isDeleted: FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted: FALSE}]->(sh:Shelf {isDeleted: FALSE})
+                    RETURN
+                        d.deviceId AS deviceId,
+                        d.deviceName AS deviceName,
+                        d.partNumber AS partNumber,
+                        d.buildingName AS buildingName,
+                        d.deviceType AS deviceType,
+                        d.isDeleted AS isDeleted,
+                        d.createdAt AS createdAt,
+                        d.updatedAt AS updatedAt,
+                        d.numShelfPositions AS numberOfShelfPositions,
+                        collect(
+                            CASE
+                                WHEN s IS NOT NULL THEN {
+                                    shelfPosId: s.shelfPosId,
+                                    shelfPosCreatedAt: s.createdAt,
+                                    shelfPosDeviceId: s.deviceId,
+                                    shelfPosUpdatedAt: s.updatedAt,
+                                    shelfId: sh.shelfId,
+                                    shelfPartNumber: sh.partNumber,
+                                    shelfName: sh.shelfName,
+                                    shelfUpdatedAt: sh.updatedAt,
+                                    shelfCreatedAt: sh.createdAt
+                                }
+                                ELSE null
+                            END
+                        ) AS shelfPositions;
+
                     """;
 
             return session.executeRead(tx -> {
@@ -179,7 +220,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch device " + partNumber, e);
+            throw new OperationFailedException("Failed to fetch device " + partNumber);
         }
     }
 
@@ -192,23 +233,36 @@ public class DeviceRepository {
         try (Session session = driver.session(sessionConfig)) {
 
             String cypher = """
-                    MATCH (d:Device {buildingName: $buildingName,isDeleted:FALSE})
-                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
-                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
-                    RETURN d.deviceId AS deviceId,
-                           d.deviceName AS deviceName,
-                           d.partNumber AS partNumber,
-                           d.buildingName AS buildingName,
-                           d.deviceType AS deviceType,
-                           d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt,
-                           d.updatedAt AS updatedAt,
-                           d.numShelfPositions AS numberOfShelfPositions,
-                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
-                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
-                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
-                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
-                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    MATCH (d:Device {buildingName: $buildingName, isDeleted: FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted: FALSE}]->(s:ShelfPosition {isDeleted: FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted: FALSE}]->(sh:Shelf {isDeleted: FALSE})
+                    RETURN
+                        d.deviceId AS deviceId,
+                        d.deviceName AS deviceName,
+                        d.partNumber AS partNumber,
+                        d.buildingName AS buildingName,
+                        d.deviceType AS deviceType,
+                        d.isDeleted AS isDeleted,
+                        d.createdAt AS createdAt,
+                        d.updatedAt AS updatedAt,
+                        d.numShelfPositions AS numberOfShelfPositions,
+                        collect(
+                            CASE
+                                WHEN s IS NOT NULL THEN {
+                                    shelfPosId: s.shelfPosId,
+                                    shelfPosCreatedAt: s.createdAt,
+                                    shelfPosDeviceId: s.deviceId,
+                                    shelfPosUpdatedAt: s.updatedAt,
+                                    shelfId: sh.shelfId,
+                                    shelfPartNumber: sh.partNumber,
+                                    shelfName: sh.shelfName,
+                                    shelfUpdatedAt: sh.updatedAt,
+                                    shelfCreatedAt: sh.createdAt
+                                }
+                                ELSE null
+                            END
+                        ) AS shelfPositions;
+
                     """;
 
             return session.executeRead(tx -> {
@@ -221,7 +275,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch device " + buildingName, e);
+            throw new OperationFailedException("Failed to fetch device " + buildingName);
         }
     }
 
@@ -234,23 +288,36 @@ public class DeviceRepository {
         try (Session session = driver.session(sessionConfig)) {
 
             String cypher = """
-                    MATCH (d:Device {deviceType: $deviceType,isDeleted:FALSE})
-                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
-                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
-                    RETURN d.deviceId AS deviceId,
-                           d.deviceName AS deviceName,
-                           d.partNumber AS partNumber,
-                           d.buildingName AS buildingName,
-                           d.deviceType AS deviceType,
-                           d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt,
-                           d.updatedAt AS updatedAt,
-                           d.numShelfPositions AS numberOfShelfPositions,
-                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
-                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
-                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
-                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
-                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                    MATCH (d:Device {deviceType: $deviceType, isDeleted: FALSE})
+                    OPTIONAL MATCH (d)-[r1 {isDeleted: FALSE}]->(s:ShelfPosition {isDeleted: FALSE})
+                    OPTIONAL MATCH (s)-[r2 {isDeleted: FALSE}]->(sh:Shelf {isDeleted: FALSE})
+                    RETURN
+                        d.deviceId AS deviceId,
+                        d.deviceName AS deviceName,
+                        d.partNumber AS partNumber,
+                        d.buildingName AS buildingName,
+                        d.deviceType AS deviceType,
+                        d.isDeleted AS isDeleted,
+                        d.createdAt AS createdAt,
+                        d.updatedAt AS updatedAt,
+                        d.numShelfPositions AS numberOfShelfPositions,
+                        collect(
+                            CASE
+                                WHEN s IS NOT NULL THEN {
+                                    shelfPosId: s.shelfPosId,
+                                    shelfPosCreatedAt: s.createdAt,
+                                    shelfPosDeviceId: s.deviceId,
+                                    shelfPosUpdatedAt: s.updatedAt,
+                                    shelfId: sh.shelfId,
+                                    shelfPartNumber: sh.partNumber,
+                                    shelfName: sh.shelfName,
+                                    shelfUpdatedAt: sh.updatedAt,
+                                    shelfCreatedAt: sh.createdAt
+                                }
+                                ELSE null
+                            END
+                        ) AS shelfPositions;
+
                     """;
 
             return session.executeRead(tx -> {
@@ -263,7 +330,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch device " + deviceType, e);
+            throw new OperationFailedException("Failed to fetch device " + deviceType);
         }
     }
 
@@ -276,23 +343,36 @@ public class DeviceRepository {
         try (Session session = driver.session(sessionConfig)) {
 
             String cypher = """
-                    MATCH (d:Device {deviceId: $deviceId,isDeleted:FALSE})
-                    OPTIONAL MATCH (d)-[r1 {isDeleted:FALSE}]->(s:ShelfPosition {isDeleted:FALSE})
-                    OPTIONAL MATCH (s)-[r2 {isDeleted:FALSE}]->(sh:Shelf {isDeleted:FALSE})
-                    RETURN d.deviceId AS deviceId,
-                           d.deviceName AS deviceName,
-                           d.partNumber AS partNumber,
-                           d.buildingName AS buildingName,
-                           d.deviceType AS deviceType,
-                           d.isDeleted AS isDeleted,
-                           d.createdAt AS createdAt,
-                           d.updatedAt AS updatedAt,
-                           d.numShelfPositions AS numberOfShelfPositions,
-                    collect({shelfPosId:s.shelfPosId,shelfPosCreatedAt:s.createdAt,
-                    shelfPosDeviceId:s.deviceId,shelfPosUpdatedAt:s.updatedAt,
-                    shelfId:sh.shelfId,shelfPartNumber:sh.partNumber,
-                    shelfName:sh.shelfName,shelfUpdatedAt:sh.updatedAt,
-                    shelfCreatedAt:sh.createdAt}) AS shelfPositions;
+                        MATCH (d:Device {deviceId: $deviceId, isDeleted: FALSE})
+                        OPTIONAL MATCH (d)-[r1 {isDeleted: FALSE}]->(s:ShelfPosition {isDeleted: FALSE})
+                        OPTIONAL MATCH (s)-[r2 {isDeleted: FALSE}]->(sh:Shelf {isDeleted: FALSE})
+                        RETURN
+                            d.deviceId AS deviceId,
+                            d.deviceName AS deviceName,
+                            d.partNumber AS partNumber,
+                            d.buildingName AS buildingName,
+                            d.deviceType AS deviceType,
+                            d.isDeleted AS isDeleted,
+                            d.createdAt AS createdAt,
+                            d.updatedAt AS updatedAt,
+                            d.numShelfPositions AS numberOfShelfPositions,
+                            collect(
+                                CASE
+                                    WHEN s IS NOT NULL THEN {
+                                        shelfPosId: s.shelfPosId,
+                                        shelfPosCreatedAt: s.createdAt,
+                                        shelfPosDeviceId: s.deviceId,
+                                        shelfPosUpdatedAt: s.updatedAt,
+                                        shelfId: sh.shelfId,
+                                        shelfPartNumber: sh.partNumber,
+                                        shelfName: sh.shelfName,
+                                        shelfUpdatedAt: sh.updatedAt,
+                                        shelfCreatedAt: sh.createdAt
+                                    }
+                                    ELSE null
+                                END
+                            ) AS shelfPositions;
+
                     """;
 
             return session.executeRead(tx -> {
@@ -304,7 +384,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch device " + deviceId, e);
+            throw new OperationFailedException("Failed to fetch device " + deviceId);
         }
     }
 
@@ -352,7 +432,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to save device", e);
+            throw new OperationFailedException("Failed to save device");
         }
     }
 
@@ -394,7 +474,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to update device " + deviceId, e);
+            throw new OperationFailedException("Failed to update device " + deviceId);
         }
     }
 
@@ -405,6 +485,21 @@ public class DeviceRepository {
                 .build();
 
         try (Session session = driver.session(sessionConfig)) {
+            String query1 = """
+                    MATCH (device:Device {deviceId:$deviceId})
+                    RETURN device.isDeleted AS isDeleted;
+                    """;
+            Optional<Boolean> deletionState = session.executeRead(tx -> {
+                List<Record> records = tx.run(query1, Map.of("deviceId", deviceId)).list();
+                if (records.isEmpty()) {
+                    Optional.empty();
+                }
+                return Optional.of(records.get(0).get("isDeleted").asBoolean());
+            });
+
+            if (deletionState.get() == true) {
+                throw new ConflictException("Device is Already Deleted " + deviceId);
+            }
 
             String cypher = """
                         MATCH (device:Device {deviceId: $deviceId,isDeleted:FALSE})
@@ -428,7 +523,7 @@ public class DeviceRepository {
             });
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to delete device " + deviceId, e);
+            throw new OperationFailedException("Failed to delete device " + deviceId);
         }
     }
 

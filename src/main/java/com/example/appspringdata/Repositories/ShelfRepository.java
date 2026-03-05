@@ -12,7 +12,8 @@ import org.neo4j.driver.SessionConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import com.example.appspringdata.Utils.DeviceOutput;
+import com.example.appspringdata.Exceptions.ConflictException;
+import com.example.appspringdata.Exceptions.OperationFailedException;
 import com.example.appspringdata.Utils.ShelfOutput;
 
 import org.neo4j.driver.Record;
@@ -47,6 +48,8 @@ public class ShelfRepository {
             });
 
             return Optional.ofNullable(count).map(Long::longValue);
+        }catch(Exception e){
+            throw new OperationFailedException("Failed to fetch number of shelves "+ e);
         }
     }
 
@@ -76,9 +79,7 @@ public class ShelfRepository {
                 return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
             });
         } catch (Exception e) {
-            System.err.println("Error fetching device: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to fetch device " + shelfName, e);
+            throw new OperationFailedException("failed to fetch shelfname "+shelfName);
         }
     }
 
@@ -108,9 +109,7 @@ public class ShelfRepository {
                 return deviceList.isEmpty() ? Optional.empty() : Optional.of(deviceList);
             });
         } catch (Exception e) {
-            System.err.println("Error fetching device: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("Failed to fetch device " + partNumber, e);
+            throw new OperationFailedException("failed to fetch shelf with part number "+partNumber);
         }
     }
 
@@ -144,9 +143,7 @@ public class ShelfRepository {
 
             return list.isEmpty() ? Optional.empty() : Optional.of(list);
         } catch (Exception e) {
-            System.out.println("**********");
-            System.out.println(e);
-            throw new RuntimeException(e);
+            throw new OperationFailedException("failed to fetch all shelves");
         }
     }
 
@@ -176,7 +173,7 @@ public class ShelfRepository {
                 return Optional.of(mapToShelf(records.get(0)));
             });
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch device " + shelfId, e);
+            throw new OperationFailedException("Failed to fetch device " + shelfId);
         }
     }
 
@@ -218,7 +215,7 @@ public class ShelfRepository {
                 return Optional.of(mapToShelf(records.get(0)));
             });
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("failed to save shelf");
         }
     }
 
@@ -229,6 +226,23 @@ public class ShelfRepository {
                 .build();
 
         try (Session session = driver.session(sessionConfig)) {
+            String query1="""
+                    MATCH (s:Shelf {shelfId:$shelfId})
+                    RETURN s.isDeleted as isDeleted;
+                    """;
+            
+            Optional<Boolean> deletionState=session.executeRead(tx->{
+                List<Record> records=tx.run(query1,Map.of("shelfId",shelfId)).list();
+                if (records.isEmpty()){
+                    Optional.empty();
+                }
+                return Optional.of(records.get(0).get("isDeleted").asBoolean());
+            });
+
+            if (deletionState.get()==true){
+                throw new ConflictException("shelf Already Deleted");
+            }
+
             String cypher = """
                     MATCH (s:Shelf {shelfId:$shelfId,isDeleted:FALSE})
                     OPTIONAL MATCH (s)<-[r:HAS {isDeleted:FALSE}]-(sh:ShelfPosition {isDeleted:FALSE})
@@ -282,7 +296,7 @@ public class ShelfRepository {
                 }
             });
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new OperationFailedException("Failed to delete shelf "+shelfId);
         }
     }
 

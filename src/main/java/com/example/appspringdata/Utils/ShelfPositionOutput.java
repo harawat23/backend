@@ -48,4 +48,22 @@ public class ShelfPositionOutput {
     public void setUpdatedAt(ZonedDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public ShelfPositionOutput() {
+    }
+
+    public ShelfPositionOutput(
+
+    String shelfPosId,
+    ZonedDateTime createdAt,
+    String deviceId,
+    ZonedDateTime updatedAt,
+    ShelfOutput shelfOutput)
+    {
+        this.deviceId=deviceId;
+        this.shelfPosId=shelfPosId;
+        this.createdAt=createdAt;
+        this.updatedAt=updatedAt;
+        this.shelfOutput=shelfOutput;
+    }
 }

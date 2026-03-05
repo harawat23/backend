@@ -11,4 +11,9 @@ public class ShelfPositionInput {
         this.deviceId = deviceId;
     }
 
+    public ShelfPositionInput(){}
+
+    public ShelfPositionInput(String deviceId){
+        this.deviceId=deviceId;
+    }
 }
