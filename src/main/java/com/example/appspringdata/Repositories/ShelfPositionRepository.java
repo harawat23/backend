@@ -116,7 +116,7 @@ public class ShelfPositionRepository {
                     MERGE (s)<-[r:HAS {isDeleted:FALSE}]-(d)
                     SET r.createdAt=datetime()
                     SET r.updatedAt=datetime()
-                    SET d.createdAt=datetime()
+                    SET d.updatedAt=datetime()
                     SET d.numShelfPositions=d.numShelfPositions+1
                     RETURN
                         s.createdAt AS createdAt_shelfPosition,
@@ -172,7 +172,8 @@ public class ShelfPositionRepository {
                         s.updatedAt = datetime(),
                         r2.isDeleted = true,
                         r2.updatedAt = datetime(),
-                        d.numShelfPositions=d.numShelfPositions-1
+                        d.numShelfPositions=d.numShelfPositions-1,
+                        d.updatedAt=datetime()
                     RETURN s.shelfPosId, d.deviceId, sh.shelfId
                     """;
 
@@ -271,14 +272,15 @@ public class ShelfPositionRepository {
             String cypher = """
                     MATCH (s:ShelfPosition {shelfPosId: $shelfPositionId,isDeleted:FALSE})
                     MATCH (sh:Shelf {shelfId: $shelfId,isDeleted:FALSE})
-                    WHERE s.isDeleted = false AND sh.isDeleted = false
+                    MATCH (d:Device {isDeleted:False})-[:HAS {isDeleted:False}]->(s)
 
                     MERGE (s)-[r:HAS]->(sh)
                     SET r.createdAt = datetime(),
                         r.updatedAt = datetime(),
                         sh.updatedAt = datetime(),
                         s.updatedAt = datetime(),
-                        r.isDeleted = false
+                        r.isDeleted = false,
+                        d.updatedAt=datetime()
                     RETURN
                         s.createdAt AS createdAt_shelfPosition,
                         s.shelfPosId AS shelfPosId,
@@ -365,7 +367,7 @@ public class ShelfPositionRepository {
 
             String cypher = """
                         MATCH (s:ShelfPosition {shelfPosId:$shelfPositionId,isDeleted:FALSE})-[r:HAS {isDeleted:FALSE}]->(sh:Shelf {shelfId:$shelfId,isDeleted:FALSE})
-                        MATCH (s)<-[r1:HAS {isDeleted:FALSE}]-(d:Device)
+                        MATCH (s)<-[r1:HAS {isDeleted:FALSE}]-(d:Device {isDeleted:FALSE})
                         SET r.isDeleted=true,
                             s.updatedAt=datetime(),
                             r.updatedAt=datetime()
@@ -375,7 +377,7 @@ public class ShelfPositionRepository {
                             s.updatedAt AS updatedAt_shelfPosition;
                     """;
 
-            return session.executeWrite(tx -> {
+            Optional<ShelfPositionOutput> shelfPositionOutput= session.executeWrite(tx -> {
                 List<Record> record = tx.run(cypher, Map.of("shelfPositionId", shelfPositionId, "shelfId", shelfId))
                         .list();
                 if (record.isEmpty()) {
@@ -384,6 +386,8 @@ public class ShelfPositionRepository {
                     return Optional.of(mapToShelfPositionOutput(record.get(0)));
                 }
             });
+
+            return shelfPositionOutput;
         } catch (Exception e) {
             throw new OperationFailedException("Failed to detach shelf and shelfposition");
         }

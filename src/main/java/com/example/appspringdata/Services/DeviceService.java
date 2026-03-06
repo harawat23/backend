@@ -2,9 +2,12 @@ package com.example.appspringdata.Services;
 
 import java.util.List;
 import java.util.Optional;
+
+import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.appspringdata.Exceptions.BadRequestsException;
 import com.example.appspringdata.Repositories.DeviceRepository;
 import com.example.appspringdata.Utils.DeviceOutput;
 

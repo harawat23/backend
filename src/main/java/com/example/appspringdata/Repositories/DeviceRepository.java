@@ -406,7 +406,8 @@ public class DeviceRepository {
                         deviceName: $deviceName,
                         createdAt: datetime(),
                         updatedAt: datetime(),
-                        isDeleted: false
+                        isDeleted: false,
+                        numShelfPositions:0
                     })
                     RETURN d.deviceId AS deviceId, d.deviceName AS deviceName, d.partNumber AS partNumber,
                            d.buildingName AS buildingName, d.deviceType AS deviceType,
